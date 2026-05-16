@@ -50,7 +50,7 @@ Ensure you have Node.js and a package manager configured.
 
 ### 2. Clone and Install
 ```bash
-git clone https://github.com/your-username/aspire-goal-portal.git
+git clone https://github.com/yuvii2109/aspire-goal-portal.git
 cd aspire-goal-portal
 npm install
 ```
