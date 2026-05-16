@@ -1,12 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { Target, CheckSquare, ArrowRight } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
 function Index() {
+  const { profile } = useAuth();
+  const canSeeTeamApprovals = profile?.role === "Manager" || profile?.role === "Admin";
+
   return (
     <AppShell>
       <div className="px-5 py-8 sm:px-8 lg:px-10">
@@ -21,10 +26,18 @@ function Index() {
             A focused workspace for individuals and managers to align on what matters this quarter.
           </p>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div
+            className={cn(
+              "mt-8 grid gap-4",
+              canSeeTeamApprovals ? "sm:grid-cols-2" : "sm:grid-cols-1 sm:justify-items-center",
+            )}
+          >
             <Link
               to="/my-goals"
-              className="group flex items-center justify-between rounded-2xl border border-border bg-card p-6 shadow-soft transition hover:-translate-y-0.5 hover:shadow-elegant"
+              className={cn(
+                "group flex items-center justify-between rounded-2xl border border-border bg-card p-6 shadow-soft transition hover:-translate-y-0.5 hover:shadow-elegant",
+                !canSeeTeamApprovals && "sm:w-full sm:max-w-md",
+              )}
             >
               <div>
                 <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary">
@@ -35,19 +48,21 @@ function Index() {
               </div>
               <ArrowRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-primary" />
             </Link>
-            <Link
-              to="/team-approvals"
-              className="group flex items-center justify-between rounded-2xl border border-border bg-card p-6 shadow-soft transition hover:-translate-y-0.5 hover:shadow-elegant"
-            >
-              <div>
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary">
-                  <CheckSquare className="h-5 w-5" />
+            {canSeeTeamApprovals ? (
+              <Link
+                to="/team-approvals"
+                className="group flex items-center justify-between rounded-2xl border border-border bg-card p-6 shadow-soft transition hover:-translate-y-0.5 hover:shadow-elegant"
+              >
+                <div>
+                  <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary">
+                    <CheckSquare className="h-5 w-5" />
+                  </div>
+                  <div className="mt-4 text-base font-semibold">Team Approvals</div>
+                  <div className="mt-1 text-sm text-muted-foreground">Review pending team goals</div>
                 </div>
-                <div className="mt-4 text-base font-semibold">Team Approvals</div>
-                <div className="mt-1 text-sm text-muted-foreground">Review pending team goals</div>
-              </div>
-              <ArrowRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-primary" />
-            </Link>
+                <ArrowRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-primary" />
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>

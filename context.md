@@ -37,6 +37,7 @@
 ## Routes and UI
 - / (src/routes/index.tsx)
   - Landing page with two cards linking to My Goals and Team Approvals.
+  - Team Approvals card hidden for Employees; layout centers My Goals when alone.
 - /my-goals (src/routes/my-goals.tsx)
   - Draft goals UI: create form, list of draft cards, sticky footer with weightage progress.
   - Tabs split: Planning (Drafts) and Execution (Active) with approved goals.
