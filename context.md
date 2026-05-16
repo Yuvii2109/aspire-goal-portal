@@ -31,6 +31,7 @@
   - src/components/AppShell.tsx: responsive sidebar + top bar shell
   - AppShell top bar includes a search input placeholder and notification dropdown
   - AppShell brand uses Aspire logo in sidebar and mobile header
+  - Notifications dropdown uses real data with a bell badge dot when items exist
 - Styling:
   - src/styles.css: Tailwind theme variables, light/dark palettes, base styles
 
@@ -99,6 +100,7 @@
 - Global toast system uses shadcn/sonner (Toaster mounted in root).
 - Supabase hooks (src/lib/supabase.ts) accept user id for query/mutations and gate queries with enabled.
 - Approved goals query includes nested check_ins for employee dashboards.
+- Notifications query provides role-based timeline items for employee and manager events.
 
 ## Commands
 - npm run dev: start Vite dev server

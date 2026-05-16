@@ -71,6 +71,13 @@ export type ManagerCheckIn = CheckIn & {
   };
 };
 
+export type NotificationItem = {
+  id: string;
+  title: string;
+  detail: string;
+  timestamp: string;
+};
+
 async function requireUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error) throw error;
@@ -136,6 +143,99 @@ export function useManagerCheckInsQuery(managerId?: string) {
 
       if (error) throw error;
       return data as ManagerCheckIn[];
+    },
+  });
+}
+
+export function useNotificationsQuery(
+  userId?: string,
+  role?: Profile["role"],
+  limit = 5,
+) {
+  return useQuery({
+    queryKey: ["notifications", role, userId, limit],
+    enabled: !!userId && !!role,
+    queryFn: async () => {
+      if (!userId || !role) {
+        throw new Error("Missing user id or role for notifications query.");
+      }
+
+      if (role === "Employee") {
+        const [goalResult, commentResult] = await Promise.all([
+          supabase
+            .from("goals")
+            .select("id, title, status, created_at")
+            .eq("employee_id", userId)
+            .in("status", ["Approved/Locked", "Draft"])
+            .order("created_at", { ascending: false })
+            .limit(limit),
+          supabase
+            .from("check_ins")
+            .select("id, goal_id, quarter, manager_comment, updated_at, goals!inner(title, employee_id)")
+            .eq("goals.employee_id", userId)
+            .not("manager_comment", "is", null)
+            .order("updated_at", { ascending: false })
+            .limit(limit),
+        ]);
+
+        if (goalResult.error) throw goalResult.error;
+        if (commentResult.error) throw commentResult.error;
+
+        const goalEvents = (goalResult.data ?? []).map((goal) => ({
+          id: `goal-${goal.id}`,
+          title: goal.status === "Approved/Locked" ? "Goal approved" : "Goal returned",
+          detail: goal.title,
+          timestamp: goal.created_at,
+        }));
+
+        const commentEvents = (commentResult.data ?? []).map((checkIn) => ({
+          id: `comment-${checkIn.id}`,
+          title: "Manager commented",
+          detail: checkIn.goals?.title ?? "Goal check-in",
+          timestamp: checkIn.updated_at,
+        }));
+
+        return [...goalEvents, ...commentEvents]
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, limit) as NotificationItem[];
+      }
+
+      const [pendingGoalsResult, checkInsResult] = await Promise.all([
+        supabase
+          .from("goals")
+          .select("id, title, created_at, profiles!inner(full_name, manager_id)")
+          .eq("status", "Pending Approval")
+          .eq("profiles.manager_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+        supabase
+          .from("check_ins")
+          .select("id, quarter, updated_at, goals!inner(title, employee_id, profiles!inner(full_name, manager_id))")
+          .eq("goals.profiles.manager_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(limit),
+      ]);
+
+      if (pendingGoalsResult.error) throw pendingGoalsResult.error;
+      if (checkInsResult.error) throw checkInsResult.error;
+
+      const pendingEvents = (pendingGoalsResult.data ?? []).map((goal) => ({
+        id: `pending-${goal.id}`,
+        title: "Goal submitted for approval",
+        detail: `${goal.profiles?.full_name ?? "Employee"} • ${goal.title}`,
+        timestamp: goal.created_at,
+      }));
+
+      const checkInEvents = (checkInsResult.data ?? []).map((checkIn) => ({
+        id: `checkin-${checkIn.id}`,
+        title: "New check-in logged",
+        detail: `${checkIn.goals?.profiles?.full_name ?? "Employee"} • ${checkIn.goals?.title ?? "Goal"} (${checkIn.quarter})`,
+        timestamp: checkIn.updated_at,
+      }));
+
+      return [...pendingEvents, ...checkInEvents]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, limit) as NotificationItem[];
     },
   });
 }

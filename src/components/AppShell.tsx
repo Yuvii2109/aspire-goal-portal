@@ -14,30 +14,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { supabase, useNotificationsQuery } from "@/lib/supabase";
 
 const nav = [
   { to: "/my-goals", label: "My Goals", icon: Target },
   { to: "/team-approvals", label: "Team Approvals", icon: CheckSquare },
 ];
 
-const notifications = [
-  {
-    title: "Manager approved your Q3 goal",
-    detail: "Customer retention +6% target approved.",
-    time: "2h ago",
-  },
-  {
-    title: "Quarterly check-ins open next week",
-    detail: "Draft your mid-cycle updates by Monday.",
-    time: "Yesterday",
-  },
-  {
-    title: "New team goals submitted",
-    detail: "3 goals are ready for your review.",
-    time: "2 days ago",
-  },
-];
+const formatNotificationTime = (timestamp: string) => {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
 
 function NavItems({
   onNavigate,
@@ -96,9 +88,13 @@ function Brand() {
 function NotificationsMenu({
   children,
   align = "end",
+  items,
+  isLoading,
 }: {
   children: ReactNode;
   align?: "start" | "center" | "end";
+  items: { id: string; title: string; detail: string; timestamp: string }[];
+  isLoading: boolean;
 }) {
   return (
     <DropdownMenu>
@@ -107,16 +103,28 @@ function NotificationsMenu({
         <DropdownMenuLabel>Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <div className="space-y-1">
-          {notifications.map((notification) => (
-            <DropdownMenuItem
-              key={notification.title}
-              className="flex flex-col items-start gap-1 rounded-lg p-3"
-            >
-              <div className="text-sm font-medium text-foreground">{notification.title}</div>
-              <div className="text-xs text-muted-foreground">{notification.detail}</div>
-              <div className="text-[11px] text-muted-foreground">{notification.time}</div>
-            </DropdownMenuItem>
-          ))}
+          {isLoading ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              Loading notifications...
+            </div>
+          ) : items.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              No new notifications yet.
+            </div>
+          ) : (
+            items.map((notification) => (
+              <DropdownMenuItem
+                key={notification.id}
+                className="flex flex-col items-start gap-1 rounded-lg p-3"
+              >
+                <div className="text-sm font-medium text-foreground">{notification.title}</div>
+                <div className="text-xs text-muted-foreground">{notification.detail}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </div>
+              </DropdownMenuItem>
+            ))
+          )}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -129,6 +137,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState("");
   const { session, profile, loading } = useAuth();
   const canSeeTeamApprovals = profile?.role === "Manager" || profile?.role === "Admin";
+  const userInitials = (profile?.full_name ?? "")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("") || "--";
+  const { data: notificationItems = [], isLoading: notificationsLoading } = useNotificationsQuery(
+    session?.user?.id,
+    profile?.role,
+    5,
+  );
 
   useEffect(() => {
     if (!loading && !session) {
@@ -179,12 +198,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <span className="text-sm font-semibold">Aspire</span>
         </div>
-        <NotificationsMenu align="end">
+        <NotificationsMenu
+          align="end"
+          items={notificationItems}
+          isLoading={notificationsLoading}
+        >
           <button
-            className="grid h-10 w-10 place-items-center rounded-xl hover:bg-secondary"
+            className="relative grid h-10 w-10 place-items-center rounded-xl hover:bg-secondary"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
+            {notificationItems.length > 0 ? (
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary shadow-soft" />
+            ) : null}
           </button>
         </NotificationsMenu>
       </header>
@@ -219,7 +245,27 @@ export function AppShell({ children }: { children: ReactNode }) {
               <X className="h-5 w-5" />
             </button>
           </div>
+          <div className="px-6 pb-3">
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/40 p-3">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                {userInitials}
+              </div>
+              <div className="leading-tight">
+                <div className="text-sm font-semibold">{profile?.full_name ?? "Profile"}</div>
+                <div className="text-xs text-muted-foreground">{profile?.role ?? ""}</div>
+              </div>
+            </div>
+          </div>
           <NavItems onNavigate={() => setOpen(false)} showTeamApprovals={canSeeTeamApprovals} />
+          <div className="mt-auto px-6 pb-6">
+            <Button
+              variant="outline"
+              className="h-11 w-full rounded-xl"
+              onClick={onSignOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Log out
+            </Button>
+          </div>
         </aside>
       </div>
 
@@ -248,9 +294,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Button>
           </form>
           <div className="flex items-center gap-3">
-            <NotificationsMenu align="end">
-              <Button variant="ghost" size="icon" className="rounded-xl">
+            <NotificationsMenu
+              align="end"
+              items={notificationItems}
+              isLoading={notificationsLoading}
+            >
+              <Button variant="ghost" size="icon" className="relative rounded-xl">
                 <Bell className="h-4 w-4" />
+                {notificationItems.length > 0 ? (
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary shadow-soft" />
+                ) : null}
               </Button>
             </NotificationsMenu>
             <Button variant="ghost" size="icon" className="rounded-xl" onClick={onSignOut}>
