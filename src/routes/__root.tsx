@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Aspire - Goal Setting & Tracking Portal" },
       { name: "description", content: "Set, track, and approve enterprise goals with a beautiful, mobile-first workspace." },
       { name: "author", content: "Aspire" },
-      { property: "og:title", content: "Aspire — Goal Setting & Tracking Portal" },
+      { property: "og:title", content: "Aspire - Goal Setting & Tracking Portal" },
       { property: "og:description", content: "Set, track, and approve enterprise goals with a beautiful, mobile-first workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
